@@ -95,6 +95,16 @@ def run(level_script, config, num_episodes):
   pprint.pprint(action_spec)
 
   obs = env.observations()  # dict of Numpy arrays
+  
+  map_string = obs['DEBUG.MAZE.LAYOUT']
+  current_pos = obs['DEBUG.POS.TRANS']
+  world_width = int(config["width"])
+  world_height = int(config["height"])
+  coord_map = get_coord_map(map_string)
+
+  #to check what's there in at point (x,y)
+  print(get_map_item(coord_map, current_pos[0], current_pos[1], world_width, world_height))
+
   rgb_i = obs['RGB_INTERLEAVED']
   print('Observation shape:', rgb_i.shape)
   sys.stdout.flush()
