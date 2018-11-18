@@ -28,6 +28,44 @@ import cv2
 
 import deepmind_lab
 
+def get_coord_map(map_string):
+  """Given a map string, returns a 2D array of map items (G, A,..). Bottom-left of map is taken as (0,0)."""
+
+  map = map_string.splitlines()
+  
+  rows = len(map)
+  cols = len(map[0])
+
+  coord_map = [[0]*cols for i in range(rows)]
+  
+  for i in range(rows):
+    for j in range(cols):
+      coord_map[j][rows-1-i] = map[i][j]
+
+  return coord_map
+
+
+def get_map_item(coord_map, real_world_x, real_world_y, world_width, world_height):
+  """Given a coordinate map, real_world coordinates (x,y) and real world width and height, returns what map item is present at (x,y)"""
+
+  rows = len(coord_map)
+  cols = len(coord_map[0])
+
+  sf_col=world_width/cols
+  sf_row=world_height/rows
+
+  #floor the floating pt
+  coord_x = int(real_world_x/sf_col)
+  coord_y = int(real_world_y/sf_row)
+
+  #boundary condition
+  if coord_x >= rows:
+    coord_x -= 1
+  if coord_y >= cols:
+    coord_y -= 1
+
+  return coord_map[coord_x][coord_y]
+
 def print_step(obs, step):
 
   print('---------------------------- Step : ', step, '--------------------')
