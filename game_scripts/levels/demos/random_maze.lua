@@ -23,6 +23,7 @@ local make_map = require 'common.make_map'
 local pickups = require 'common.pickups'
 local custom_observations = require 'decorators.custom_observations'
 local setting_overrides = require 'decorators.setting_overrides'
+local debug_observations = require 'decorators.debug_observations'
 
 -- Generates a random maze with thick walls.
 -- Apples are placed near the goal and spawn points away from it.
@@ -83,7 +84,7 @@ end
 
 function api:start(episode, seed, params)
   random:seed(seed)
-  local rows, cols = 15, 15
+  local rows, cols = 7, 7
   local mazeT = generateTensorMaze(rows, cols)
   local maze = maze_generation.mazeGeneration{height = rows, width = cols}
   local variations = {'.', 'A', 'B', 'C'}
@@ -120,15 +121,19 @@ function api:start(episode, seed, params)
   }
 
   log.info('Maze:\n' .. maze:entityLayer())
-  api._maze_name = make_map.makeMap{
+  api._map = make_map.makeMap{
       mapName = 'map_random_maze',
       mapEntityLayer = maze:entityLayer(),
-      mapVariationsLayer = maze:variationsLayer()
+      mapVariationsLayer = maze:variationsLayer(),
+      useSkybox = true,
   }
+  api._maze = maze
+  log.info(api._maze:entityLayer())
+  debug_observations.setMaze(api._maze)
 end
 
 function api:nextMap()
-  return api._maze_name
+  return api._map
 end
 
 custom_observations.decorate(api)

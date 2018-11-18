@@ -333,7 +333,7 @@ function debug_observations.extend(custom_observations)
              {3, SCREEN_SHAPE.height, SCREEN_SHAPE.width}, playerView(0))
 
   -- Maze layout
-  co.addSpec('DEBUG.MAZE.LAYOUT', 'String', {0}, getMazeLayout)
+  co.addSpec('DEBUG.MAZE.LAYOUT', 'String', {1}, getMazeLayout)
 
   co.addSpec('DEBUG.POS.TRANS', 'Doubles', {3}, playerPosition)
   co.addSpec('DEBUG.POS.ROT', 'Doubles', {3}, playerOrientation)

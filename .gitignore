@@ -1,1 +1,16 @@
+# Common files
 /bazel-*
+/assets/*
+/data/*
+/deepmind/*
+/docs/*
+/engine/*
+/examples/*
+/lua_tests/*
+/public/*
+/testing/*
+/third_party/*
+/q3map2/*
+
+# Bazel build files
+*.BUILD

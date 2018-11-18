@@ -25,7 +25,7 @@ import six
 import deepmind_lab
 
 MAZE_LAYOUT_OBSERVATION = 'DEBUG.MAZE.LAYOUT'
-MAZE_LAYOUT_TRIALS = 50
+MAZE_LAYOUT_TRIALS = 10
 
 
 class MazeGenerationTest(unittest.TestCase):
@@ -37,6 +37,7 @@ class MazeGenerationTest(unittest.TestCase):
       env = deepmind_lab.Lab(
           'tests/maze_generation_test', [MAZE_LAYOUT_OBSERVATION], config={})
       env.reset(seed=i+1)
+      print(env.observations()[MAZE_LAYOUT_OBSERVATION])
       layouts.add(env.observations()[MAZE_LAYOUT_OBSERVATION])
     num_layouts = len(layouts)
     self.assertEqual(num_layouts, MAZE_LAYOUT_TRIALS)

@@ -1037,3 +1037,12 @@ test_suite(
     )
     for level_name in SEED_TEST_SCRIPTS
 ]
+
+py_binary(
+    name = "testing_obs",
+    srcs = ["python/testing_obs.py"],
+    data = [":deepmind_lab.so"],
+    main = "python/testing_obs.py",
+    visibility = ["//python/tests:__subpackages__"],
+    deps = ["@six_archive//:six"],
+)
