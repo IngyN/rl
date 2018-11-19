@@ -28,6 +28,43 @@ import cv2
 
 import deepmind_lab
 
+def _action(*entries):
+    return np.array(entries, dtype=np.intc)
+
+# class QTable:
+#   def __init__(state_size, action_size):
+#     self.state_size = state_size
+#     self.action_size = action_size
+#     self.qt = np.zeros((state_size, action_size))
+
+#   def 
+
+
+class QLearningAgent:
+  ACTIONS = {
+      'look_left': _action(-20, 0, 0, 0, 0, 0, 0),
+      'forward': _action(0, 0, 0, 1, 0, 0, 0)
+  }
+
+  ACTION_LIST = list(six.viewvalues(ACTIONS))
+
+  def __init__(coord_map):
+    coord_map_shape = get_coord_map_shape(coord_map)
+    state_size = coord_map_shape[0] * coord_map_shape[1]
+    action_size = len(QLearningAgent.ACTION_LIST)
+    self.qtable = np.zeros((state_size, action_size))
+
+  def get_q_table_row_index(self, i, j, coord_map):
+    cols = get_coord_map_shape(coord_map)[1]
+    return i * cols + j
+
+  def step(self):
+    """Gets an image state and a reward, returns an action."""
+    return random.choice(QLearningAgent.ACTION_LIST)
+
+def get_coord_map_shape(coord_map):
+  return (len(coord_map), len(coord_map[0]))
+
 def get_coord_map(map_string):
   """Given a map string, returns a 2D array of map items (G, A,..). Bottom-left of map is taken as (0,0)."""
 
@@ -44,12 +81,13 @@ def get_coord_map(map_string):
 
   return coord_map
 
-
 def get_map_item(coord_map, real_world_x, real_world_y, world_width, world_height):
   """Given a coordinate map, real_world coordinates (x,y) and real world width and height, returns what map item is present at (x,y)"""
 
-  rows = len(coord_map)
-  cols = len(coord_map[0])
+  coord_map_shape = get_coord_map_shape(coord_map)
+  
+  rows = coord_map_shape[0]
+  cols = coord_map_shape[1]
 
   sf_col=world_width/cols
   sf_row=world_height/rows
@@ -66,11 +104,13 @@ def get_map_item(coord_map, real_world_x, real_world_y, world_width, world_heigh
 
   return coord_map[coord_x][coord_y]
 
-def print_step(obs, step):
+def print_step(obs, step, action):
 
   print('---------------------------- Step : ', step, '--------------------')
   # print(obs.keys())
   # print maze layout:
+  print(f'Action taken = {action}')
+
   for key in obs.keys():
     if key != 'RGB_INTERLEAVED' and key != 'DEBUG.CAMERA_INTERLEAVED.TOP_DOWN':
       print('Key :', key, obs[key])
@@ -102,24 +142,30 @@ def run(level_script, config, num_episodes):
   world_height = int(config["height"])
   coord_map = get_coord_map(map_string)
 
+  #initialize agent
+  agent = QLearningAgent(coord_map)
+
   #to check what's there in at point (x,y)
-  print(get_map_item(coord_map, current_pos[0], current_pos[1], world_width, world_height))
+  # print(get_map_item(coord_map, current_pos[0], current_pos[1], world_width, world_height))
 
   rgb_i = obs['RGB_INTERLEAVED']
   print('Observation shape:', rgb_i.shape)
   sys.stdout.flush()
 
   # Create an action to move forwards.
-  action = np.zeros([7], dtype=np.intc)
-  action[3] = 1
+  # action = np.zeros([7], dtype=np.intc)
+  # action[3] = 1
 
   score = 0
 
   for _ in six.moves.range(num_episodes):
     while env.is_running():
+      #get the next action from the agent
+      action = agent.step()
+
       # Advance the environment 4 frames while executing the action.
-      reward = env.step(action, num_steps=4)
-      print_step(env.observations(),env.num_steps())
+      reward = env.step(action, num_steps=1)
+      print_step(env.observations(),env.num_steps(), action)
       if reward != 0:
         score += reward
         print('Score =', score)
