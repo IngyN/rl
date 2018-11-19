@@ -25,6 +25,7 @@ import sys
 import numpy as np
 import six
 import cv2
+import random
 
 import deepmind_lab
 
@@ -39,28 +40,31 @@ def _action(*entries):
 
 #   def 
 
-
 class QLearningAgent:
   ACTIONS = {
       'look_left': _action(-20, 0, 0, 0, 0, 0, 0),
+      'look_right': _action(20, 0, 0, 0, 0, 0, 0),
       'forward': _action(0, 0, 0, 1, 0, 0, 0)
   }
 
   ACTION_LIST = list(six.viewvalues(ACTIONS))
 
-  def __init__(coord_map):
+  def __init__(self, coord_map):
     coord_map_shape = get_coord_map_shape(coord_map)
     state_size = coord_map_shape[0] * coord_map_shape[1]
     action_size = len(QLearningAgent.ACTION_LIST)
     self.qtable = np.zeros((state_size, action_size))
+    self.action_count = len(QLearningAgent.ACTIONS)
 
-  def get_q_table_row_index(self, i, j, coord_map):
+  def get_action(self, action_index):
+    return QLearningAgent.ACTION_LIST[action_index]
+
+  def random_action_index(self):
+    return random.randint(0, self.action_count - 1)
+
+def get_q_table_state(i, j, coord_map):
     cols = get_coord_map_shape(coord_map)[1]
     return i * cols + j
-
-  def step(self):
-    """Gets an image state and a reward, returns an action."""
-    return random.choice(QLearningAgent.ACTION_LIST)
 
 def get_coord_map_shape(coord_map):
   return (len(coord_map), len(coord_map[0]))
@@ -81,8 +85,8 @@ def get_coord_map(map_string):
 
   return coord_map
 
-def get_map_item(coord_map, real_world_x, real_world_y, world_width, world_height):
-  """Given a coordinate map, real_world coordinates (x,y) and real world width and height, returns what map item is present at (x,y)"""
+def get_coord_x_y(coord_map, real_world_x, real_world_y, world_width, world_height):
+  """Given a coordinate map, real_world coordinates (x,y) and real world width and height, returns coordinates in coord_map"""
 
   coord_map_shape = get_coord_map_shape(coord_map)
   
@@ -102,18 +106,18 @@ def get_map_item(coord_map, real_world_x, real_world_y, world_width, world_heigh
   if coord_y >= cols:
     coord_y -= 1
 
-  return coord_map[coord_x][coord_y]
+  return (coord_x, coord_y)
 
 def print_step(obs, step, action):
 
-  print('---------------------------- Step : ', step, '--------------------')
+  # print('---------------------------- Step : ', step, '--------------------')
   # print(obs.keys())
   # print maze layout:
-  print(f'Action taken = {action}')
+  # print(f'Action taken = {action}')
 
-  for key in obs.keys():
-    if key != 'RGB_INTERLEAVED' and key != 'DEBUG.CAMERA_INTERLEAVED.TOP_DOWN':
-      print('Key :', key, obs[key])
+  # for key in obs.keys():
+  #   if key != 'RGB_INTERLEAVED' and key != 'DEBUG.CAMERA_INTERLEAVED.TOP_DOWN':
+  #     print('Key :', key, obs[key])
 
   img = obs['DEBUG.CAMERA_INTERLEAVED.TOP_DOWN']
   cv2.circle(img, (120, 50), 3, (0,255,0), -1)
@@ -123,53 +127,126 @@ def print_step(obs, step, action):
   
 def run(level_script, config, num_episodes):
   """Construct and start the environment."""
-  env = deepmind_lab.Lab(level_script, ['RGB_INTERLEAVED','DEBUG.CAMERA_INTERLEAVED.TOP_DOWN' ,'DEBUG.MAZE.LAYOUT', 'DEBUG.POS.TRANS'], config)
-  env.reset()
 
-  observation_spec = env.observation_spec()
-  print('Observation spec:')
-  pprint.pprint(observation_spec)
-
-  action_spec = env.action_spec()
-  print('Action spec:')
-  pprint.pprint(action_spec)
-
-  obs = env.observations()  # dict of Numpy arrays
-  
-  map_string = obs['DEBUG.MAZE.LAYOUT']
-  current_pos = obs['DEBUG.POS.TRANS']
   world_width = int(config["width"])
   world_height = int(config["height"])
+    
+  #initialize world
+  env = deepmind_lab.Lab(level_script, ['RGB_INTERLEAVED','DEBUG.CAMERA_INTERLEAVED.TOP_DOWN' ,'DEBUG.MAZE.LAYOUT', 'DEBUG.POS.TRANS'], config)
+
+  #score = 0
+
+  # for _ in six.moves.range(num_episodes):
+  #   while env.is_running():
+  #     #get the next action from the agent
+  #     action = agent.step()
+
+  #     # Advance the environment 4 frames while executing the action.
+  #     reward = env.step(action, num_steps=1)
+  #     print_step(env.observations(),env.num_steps(), action)
+  #     if reward != 0:
+  #       score += reward
+  #       print('Score =', score)
+  #       sys.stdout.flush()
+  
+  #hyperparameters
+  learning_rate = 0.8           # Learning rate
+  max_steps = 250                # Max steps per episode
+  gamma = 0.95                  # Discounting rate
+
+  # Exploration parameters
+  epsilon = 1.0                 # Exploration rate
+  max_epsilon = 1.0             # Exploration probability at start
+  min_epsilon = 0.01            # Minimum exploration probability 
+  decay_rate = 0.05             # Exponential decay rate for exploration prob
+
+  rewards = []
+
+  env.reset()
+  obs = env.observations()
+  map_string = obs['DEBUG.MAZE.LAYOUT']
+  current_pos = obs['DEBUG.POS.TRANS']
   coord_map = get_coord_map(map_string)
 
   #initialize agent
   agent = QLearningAgent(coord_map)
+  qtable = agent.qtable
 
-  #to check what's there in at point (x,y)
-  # print(get_map_item(coord_map, current_pos[0], current_pos[1], world_width, world_height))
+  for episode in six.moves.range(num_episodes):
+    coord_x_y = get_coord_x_y(coord_map, current_pos[0], current_pos[1], world_width, world_height)
+    state = get_q_table_state(coord_x_y[0], coord_x_y[1], coord_map)
 
-  rgb_i = obs['RGB_INTERLEAVED']
-  print('Observation shape:', rgb_i.shape)
-  sys.stdout.flush()
+    step = 0
+    done = False
+    total_rewards = 0
 
-  # Create an action to move forwards.
-  # action = np.zeros([7], dtype=np.intc)
-  # action[3] = 1
+    for step in range(max_steps):
+      print(f'------------------Episode: {episode}, Step: {step}------------------')
+      # 3. Choose an action a in the current world state (s)
+      ## First we randomize a number
+      exp_exp_tradeoff = random.uniform(0, 1)
+      
+      ## If this number > greater than epsilon --> exploitation (taking the biggest Q value for this state)
+      if exp_exp_tradeoff > epsilon:
+          print("exploitation")
+          action_index = np.argmax(qtable[state,:])
 
-  score = 0
+      # Else doing a random choice --> exploration
+      else:
+          print("exploration")
+          action_index = agent.random_action_index()
 
-  for _ in six.moves.range(num_episodes):
-    while env.is_running():
-      #get the next action from the agent
-      action = agent.step()
+      action = agent.get_action(action_index)
 
-      # Advance the environment 4 frames while executing the action.
-      reward = env.step(action, num_steps=1)
+      # Take the action (a) and observe the outcome state(s') and reward (r)
+      # new_state, reward, done, info = env.step(action)
+      reward = env.step(action, num_steps=4)
+
       print_step(env.observations(),env.num_steps(), action)
-      if reward != 0:
-        score += reward
-        print('Score =', score)
-        sys.stdout.flush()
+
+      obs = env.observations()  # dict of Numpy arrays
+      current_pos = obs['DEBUG.POS.TRANS']
+      new_coord_x_y = get_coord_x_y(coord_map, current_pos[0], current_pos[1], world_width, world_height)
+      new_state = get_q_table_state(coord_x_y[0], coord_x_y[1], coord_map)
+
+      #calculate penalties
+      penalty = 1 #penalize for each step
+
+      #TODO nabeel: rewrite wall bumping logic
+      if coord_map[new_coord_x_y[0]][new_coord_x_y[1]] == "*":
+        print(f'bumped into wall!')
+        penalty += 10
+        break
+
+      reward -= penalty
+
+      print(f'action = {action}')
+      print(f'reward => \n{reward}')
+      print(f'coord_x_y = {coord_x_y}, new_coord_x_y = {new_coord_x_y}')
+      print(f'state = {state}, new_state = {new_state}')
+
+      # Update Q(s,a):= Q(s,a) + lr [R(s,a) + gamma * max Q(s',a') - Q(s,a)]
+      # qtable[new_state,:] : all the actions we can take from new state
+      qtable[state, action_index] = qtable[state, action_index] + learning_rate * (reward + gamma * np.max(qtable[new_state, :]) - qtable[state, action_index])
+      
+      print(f'qtable => \n{qtable}')
+
+      total_rewards += reward
+      
+      # Our new state is state
+      state = new_state
+      coord_x_y = new_coord_x_y
+      
+      if coord_map[coord_x_y[0]][coord_x_y[1]] == "G":
+        print(f'reached goal!')
+        done = True 
+        break
+        
+    # Reduce epsilon (because we need less and less exploration)
+    epsilon = min_epsilon + (max_epsilon - min_epsilon)*np.exp(-decay_rate*episode) 
+    rewards.append(total_rewards)
+
+    env.reset()
 
 
 if __name__ == '__main__':
