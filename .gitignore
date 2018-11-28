@@ -16,3 +16,9 @@ dmlab.lds
 
 # Bazel build files
 *.BUILD
+
+# Other files
+CONTRIBUTING
+LICENSE
+RELEASE_NOTES.md
+WORKSPACE
