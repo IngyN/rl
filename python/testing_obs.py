@@ -128,7 +128,7 @@ def print_step(obs, step, action):
   
 def run(level_script, config, num_episodes):
   start_time = time.time()	
-  print(f'Start time = {start_time}')
+  print('Start time = {}'.format(start_time))
   """Construct and start the environment."""
 
   world_width = int(config["width"])
@@ -184,7 +184,7 @@ def run(level_script, config, num_episodes):
     total_rewards = 0
 
     for step in range(max_steps):
-      print(f'------------------Episode: {episode}, Step: {step}------------------')
+      print('------------------Episode: {}, Step: {}------------------'.format(episode, step))
       # 3. Choose an action a in the current world state (s)
       ## First we randomize a number
       exp_exp_tradeoff = random.uniform(0, 1)
@@ -217,22 +217,22 @@ def run(level_script, config, num_episodes):
 
       #TODO nabeel: rewrite wall bumping logic
       if coord_map[new_coord_x_y[0]][new_coord_x_y[1]] == "*":
-        print(f'bumped into wall!')
+        print('bumped into wall!')
         penalty += 10
         break
 
       reward -= penalty
 
-      print(f'action = {action}')
-      print(f'reward => \n{reward}')
-      print(f'coord_x_y = {coord_x_y}, new_coord_x_y = {new_coord_x_y}')
-      print(f'state = {state}, new_state = {new_state}')
+      print('action = {}'.format(action))
+      print('reward => \n{}'.format(reward))
+      print('coord_x_y = {}, new_coord_x_y = {}'.format(coord_x_y,new_coord_x_y))
+      print('state = {}, new_state = {}'.format(state, new_state))
 
       # Update Q(s,a):= Q(s,a) + lr [R(s,a) + gamma * max Q(s',a') - Q(s,a)]
       # qtable[new_state,:] : all the actions we can take from new state
       qtable[state, action_index] = qtable[state, action_index] + learning_rate * (reward + gamma * np.max(qtable[new_state, :]) - qtable[state, action_index])
       
-      print(f'qtable => \n{qtable}')
+      print('qtable => \n{}'.format(qtable))
 
       total_rewards += reward
       
