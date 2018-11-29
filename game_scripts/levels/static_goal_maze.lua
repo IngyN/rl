@@ -113,7 +113,8 @@ function api:start(episode, seed, params)
   end)
 
   -- local goal = getRandomEvenCoodinate(rows, cols)
-  local goal = {2, 2}
+  local goal = {5, 2}
+
   --set row = 2, col = 2 as G
   maze:setEntityCell(goal[1], goal[2], 'G')
 

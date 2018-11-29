@@ -11,6 +11,8 @@
 /testing/*
 /third_party/*
 /q3map2/*
+/assets_oa/*
+dmlab.lds
 
 # Bazel build files
 *.BUILD

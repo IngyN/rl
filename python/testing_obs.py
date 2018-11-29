@@ -26,6 +26,7 @@ import numpy as np
 import six
 import cv2
 import random
+import time
 
 import deepmind_lab
 
@@ -42,8 +43,8 @@ def _action(*entries):
 
 class QLearningAgent:
   ACTIONS = {
-      'look_left': _action(-20, 0, 0, 0, 0, 0, 0),
-      'look_right': _action(20, 0, 0, 0, 0, 0, 0),
+      'look_left': _action(-35, 0, 0, 0, 0, 0, 0),
+      'look_right': _action(35, 0, 0, 0, 0, 0, 0),
       'forward': _action(0, 0, 0, 1, 0, 0, 0)
   }
 
@@ -126,6 +127,8 @@ def print_step(obs, step, action):
 
   
 def run(level_script, config, num_episodes):
+  start_time = time.time()	
+  print('Start time = {}'.format(start_time))
   """Construct and start the environment."""
 
   world_width = int(config["width"])
@@ -151,14 +154,17 @@ def run(level_script, config, num_episodes):
   
   #hyperparameters
   learning_rate = 0.8           # Learning rate
-  max_steps = 250                # Max steps per episode
+
+  max_steps = 1000                # Max steps per episode
+
   gamma = 0.95                  # Discounting rate
 
   # Exploration parameters
   epsilon = 1.0                 # Exploration rate
   max_epsilon = 1.0             # Exploration probability at start
   min_epsilon = 0.01            # Minimum exploration probability 
-  decay_rate = 0.05             # Exponential decay rate for exploration prob
+
+  decay_rate = 0.025             # Exponential decay rate for exploration prob
 
   rewards = []
 
@@ -181,7 +187,9 @@ def run(level_script, config, num_episodes):
     total_rewards = 0
 
     for step in range(max_steps):
-      print(f'------------------Episode: {episode}, Step: {step}------------------')
+
+      print('------------------Episode: {}, Step: {}------------------'.format(episode, step))
+
       # 3. Choose an action a in the current world state (s)
       ## First we randomize a number
       exp_exp_tradeoff = random.uniform(0, 1)
@@ -214,22 +222,24 @@ def run(level_script, config, num_episodes):
 
       #TODO nabeel: rewrite wall bumping logic
       if coord_map[new_coord_x_y[0]][new_coord_x_y[1]] == "*":
-        print(f'bumped into wall!')
+
+        print('bumped into wall!')
+
         penalty += 10
         break
 
       reward -= penalty
 
-      print(f'action = {action}')
-      print(f'reward => \n{reward}')
-      print(f'coord_x_y = {coord_x_y}, new_coord_x_y = {new_coord_x_y}')
-      print(f'state = {state}, new_state = {new_state}')
+      print('action = {}'.format(action))
+      print('reward => \n{}'.format(reward))
+      print('coord_x_y = {}, new_coord_x_y = {}'.format(coord_x_y,new_coord_x_y))
+      print('state = {}, new_state = {}'.format(state, new_state))
 
       # Update Q(s,a):= Q(s,a) + lr [R(s,a) + gamma * max Q(s',a') - Q(s,a)]
       # qtable[new_state,:] : all the actions we can take from new state
       qtable[state, action_index] = qtable[state, action_index] + learning_rate * (reward + gamma * np.max(qtable[new_state, :]) - qtable[state, action_index])
       
-      print(f'qtable => \n{qtable}')
+      print('qtable => \n{}'.format(qtable))
 
       total_rewards += reward
       
@@ -237,11 +247,13 @@ def run(level_script, config, num_episodes):
       state = new_state
       coord_x_y = new_coord_x_y
       
-      if coord_map[coord_x_y[0]][coord_x_y[1]] == "G":
-        print(f'reached goal!')
-        done = True 
-        break
-        
+      # if coord_map[coord_x_y[0]][coord_x_y[1]] == "G":
+      #   current_time = time.time()
+      #   time_elapsed = current_time - start_time
+      #   print(f'elapsed time = [time_elapsed], current_ts = {current_time} ---- reached goal!')
+      #   done = True 
+      #   break
+
     # Reduce epsilon (because we need less and less exploration)
     epsilon = min_epsilon + (max_epsilon - min_epsilon)*np.exp(-decay_rate*episode) 
     rewards.append(total_rewards)
