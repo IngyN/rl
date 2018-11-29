@@ -50,9 +50,9 @@ class QLearningAgent:
 
   ACTION_LIST = list(six.viewvalues(ACTIONS))
 
-  def __init__(self, coord_map):
+  def __init__(self, coord_map, orientation_states):
     coord_map_shape = get_coord_map_shape(coord_map)
-    state_size = coord_map_shape[0] * coord_map_shape[1]
+    state_size = coord_map_shape[0] * coord_map_shape[1] * orientation_states
     action_size = len(QLearningAgent.ACTION_LIST)
     self.qtable = np.zeros((state_size, action_size))
     self.action_count = len(QLearningAgent.ACTIONS)
@@ -63,9 +63,24 @@ class QLearningAgent:
   def random_action_index(self):
     return random.randint(0, self.action_count - 1)
 
-def get_q_table_state(i, j, coord_map):
-    cols = get_coord_map_shape(coord_map)[1]
-    return i * cols + j
+# def get_q_table_state(i, j, coord_map):
+#     cols = get_coord_map_shape(coord_map)[1]
+#     return i * cols + j
+
+#DEBUG.POS.ROT gives orientation values from (-180,0,180]. 
+#we first convert this to [0,360). We then scale by a scale factor. For eg, 45 degrees and make it an integer.
+def get_processed_orientation(rot_angle, orientation_scale_factor):
+	if(rot_angle < 0):
+		rot_angle += 360
+
+	return int(rot_angle / orientation_scale_factor)
+
+def get_q_table_state(orientation, i, j, coord_map):
+	map_shape = get_coord_map_shape(coord_map)
+	rows = map_shape[0]
+	cols = map_shape[1]
+	return j + cols * (i + rows * orientation) #equivalent to obtaining offset of row-major form for 3D array
+
 
 def get_coord_map_shape(coord_map):
   return (len(coord_map), len(coord_map[0]))
@@ -127,30 +142,16 @@ def print_step(obs, step, action):
 
   
 def run(level_script, config, num_episodes):
-  start_time = time.time()	
-  print('Start time = {}'.format(start_time))
   """Construct and start the environment."""
 
   world_width = int(config["width"])
   world_height = int(config["height"])
     
   #initialize world
-  env = deepmind_lab.Lab(level_script, ['RGB_INTERLEAVED','DEBUG.CAMERA_INTERLEAVED.TOP_DOWN' ,'DEBUG.MAZE.LAYOUT', 'DEBUG.POS.TRANS'], config)
+  env = deepmind_lab.Lab(level_script, ['RGB_INTERLEAVED','DEBUG.CAMERA_INTERLEAVED.TOP_DOWN','DEBUG.MAZE.LAYOUT','DEBUG.POS.TRANS','DEBUG.POS.ROT'], config)
 
-  #score = 0
-
-  # for _ in six.moves.range(num_episodes):
-  #   while env.is_running():
-  #     #get the next action from the agent
-  #     action = agent.step()
-
-  #     # Advance the environment 4 frames while executing the action.
-  #     reward = env.step(action, num_steps=1)
-  #     print_step(env.observations(),env.num_steps(), action)
-  #     if reward != 0:
-  #       score += reward
-  #       print('Score =', score)
-  #       sys.stdout.flush()
+  orientation_scale_factor = 45
+  orientation_states = int(360/orientation_scale_factor)
   
   #hyperparameters
   learning_rate = 0.8           # Learning rate
@@ -163,8 +164,7 @@ def run(level_script, config, num_episodes):
   epsilon = 1.0                 # Exploration rate
   max_epsilon = 1.0             # Exploration probability at start
   min_epsilon = 0.01            # Minimum exploration probability 
-
-  decay_rate = 0.025             # Exponential decay rate for exploration prob
+  decay_rate = 0.05             # Exponential decay rate for exploration prob
 
   rewards = []
 
@@ -172,15 +172,17 @@ def run(level_script, config, num_episodes):
   obs = env.observations()
   map_string = obs['DEBUG.MAZE.LAYOUT']
   current_pos = obs['DEBUG.POS.TRANS']
+  current_orientation = get_processed_orientation(obs['DEBUG.POS.ROT'][1], orientation_scale_factor)
   coord_map = get_coord_map(map_string)
 
   #initialize agent
-  agent = QLearningAgent(coord_map)
+  agent = QLearningAgent(coord_map, orientation_states)
   qtable = agent.qtable
 
   for episode in six.moves.range(num_episodes):
+    print("episode = {}. current epsilon = {}".format(episode, epsilon))
     coord_x_y = get_coord_x_y(coord_map, current_pos[0], current_pos[1], world_width, world_height)
-    state = get_q_table_state(coord_x_y[0], coord_x_y[1], coord_map)
+    state = get_q_table_state(current_orientation, coord_x_y[0], coord_x_y[1], coord_map)
 
     step = 0
     done = False
@@ -208,52 +210,50 @@ def run(level_script, config, num_episodes):
 
       # Take the action (a) and observe the outcome state(s') and reward (r)
       # new_state, reward, done, info = env.step(action)
-      reward = env.step(action, num_steps=4)
+      env_reward = env.step(action, num_steps=4)
+      
+      #calculate penalties
+      penalty = 5 #penalize for each step
+      reward = env_reward - penalty
+      total_rewards += reward
 
       print_step(env.observations(),env.num_steps(), action)
 
       obs = env.observations()  # dict of Numpy arrays
       current_pos = obs['DEBUG.POS.TRANS']
+      current_orientation = get_processed_orientation(obs['DEBUG.POS.ROT'][1], orientation_scale_factor)
       new_coord_x_y = get_coord_x_y(coord_map, current_pos[0], current_pos[1], world_width, world_height)
-      new_state = get_q_table_state(coord_x_y[0], coord_x_y[1], coord_map)
+      new_state = get_q_table_state(current_orientation, coord_x_y[0], coord_x_y[1], coord_map)
 
-      #calculate penalties
-      penalty = 1 #penalize for each step
+      
 
       #TODO nabeel: rewrite wall bumping logic
-      if coord_map[new_coord_x_y[0]][new_coord_x_y[1]] == "*":
+      # if coord_map[new_coord_x_y[0]][new_coord_x_y[1]] == "*":
+      #   print(f'bumped into wall!')
+      #   penalty += 10
+      #   break
 
-        print('bumped into wall!')
-
-        penalty += 10
-        break
-
-      reward -= penalty
-
-      print('action = {}'.format(action))
-      print('reward => \n{}'.format(reward))
-      print('coord_x_y = {}, new_coord_x_y = {}'.format(coord_x_y,new_coord_x_y))
-      print('state = {}, new_state = {}'.format(state, new_state))
+      # print('current_orientation = {}'.format(current_orientation))
+      # print(f'action = {action}')
+      # print(f'reward => \n{reward}')
+      # print(f'coord_x_y = {coord_x_y}, new_coord_x_y = {new_coord_x_y}')
+      # print(f'state = {state}, new_state = {new_state}')
 
       # Update Q(s,a):= Q(s,a) + lr [R(s,a) + gamma * max Q(s',a') - Q(s,a)]
       # qtable[new_state,:] : all the actions we can take from new state
       qtable[state, action_index] = qtable[state, action_index] + learning_rate * (reward + gamma * np.max(qtable[new_state, :]) - qtable[state, action_index])
       
-      print('qtable => \n{}'.format(qtable))
+      # print(f'qtable => \n{qtable}')
 
-      total_rewards += reward
-      
       # Our new state is state
       state = new_state
       coord_x_y = new_coord_x_y
       
-      # if coord_map[coord_x_y[0]][coord_x_y[1]] == "G":
-      #   current_time = time.time()
-      #   time_elapsed = current_time - start_time
-      #   print(f'elapsed time = [time_elapsed], current_ts = {current_time} ---- reached goal!')
-      #   done = True 
-      #   break
-
+      #check if reached goal
+      if env_reward == 10:
+        done = True 
+        break
+        
     # Reduce epsilon (because we need less and less exploration)
     epsilon = min_epsilon + (max_epsilon - min_epsilon)*np.exp(-decay_rate*episode) 
     rewards.append(total_rewards)
