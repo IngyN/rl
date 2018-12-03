@@ -10,7 +10,7 @@ Navigation using geolocation technology has become an essential function of our 
 - python/logs/ : logs from the agent. 
 - report.pdf : report detailing our work.
 
-Most other files are common with the Deepmind lab repo and are not our work. Here is a short explanation of our work in the form of a video.
+Most other files are common with the Deepmind lab repo and are not our work. Here is a short explanation of our work in the form of a [video] (https://www.youtube.com/watch?v=8KGUOTYc1Qc).
 
 ## Requirements
 - Python 3 (recommended 3.5 or more)
