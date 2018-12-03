@@ -27,6 +27,7 @@ import six
 import cv2
 import random
 import time
+import pickle
 
 import deepmind_lab
 
@@ -109,12 +110,9 @@ def get_coord_x_y(coord_map, real_world_x, real_world_y, world_width, world_heig
   rows = coord_map_shape[0]
   cols = coord_map_shape[1]
 
-  sf_col=world_width/cols
-  sf_row=world_height/rows
-
   #floor the floating pt
-  coord_x = int(real_world_x/sf_col)
-  coord_y = int(real_world_y/sf_row)
+  coord_x = int(real_world_x/world_height)
+  coord_y = int(real_world_y/world_height)
 
   #boundary condition
   if coord_x >= rows:
@@ -136,7 +134,7 @@ def print_step(obs, step, action):
   #     print('Key :', key, obs[key])
 
   img = obs['DEBUG.CAMERA_INTERLEAVED.TOP_DOWN']
-  cv2.circle(img, (120, 50), 3, (0,255,0), -1)
+  # cv2.circle(img, (120, 50), 3, (0,255,0), -1)
   cv2.imshow('map', img)
   cv2.waitKey(2)
 
@@ -144,8 +142,8 @@ def print_step(obs, step, action):
 def run(level_script, config, num_episodes):
   """Construct and start the environment."""
 
-  world_width = int(config["width"])
-  world_height = int(config["height"])
+  world_width = 100
+  world_height = 100
     
   #initialize world
   env = deepmind_lab.Lab(level_script, ['RGB_INTERLEAVED','DEBUG.CAMERA_INTERLEAVED.TOP_DOWN','DEBUG.MAZE.LAYOUT','DEBUG.POS.TRANS','DEBUG.POS.ROT'], config)
@@ -156,14 +154,14 @@ def run(level_script, config, num_episodes):
   #hyperparameters
   learning_rate = 0.8           # Learning rate
 
-  max_steps = 1000                # Max steps per episode
+  max_steps = 800                # Max steps per episode
 
   gamma = 0.95                  # Discounting rate
 
   # Exploration parameters
   epsilon = 1.0                 # Exploration rate
   max_epsilon = 1.0             # Exploration probability at start
-  min_epsilon = 0.01            # Minimum exploration probability 
+  min_epsilon = 0.005            # Minimum exploration probability 
   decay_rate = 0.05             # Exponential decay rate for exploration prob
 
   rewards = []
@@ -178,6 +176,8 @@ def run(level_script, config, num_episodes):
   #initialize agent
   agent = QLearningAgent(coord_map, orientation_states)
   qtable = agent.qtable
+
+  summary =[]
 
   for episode in six.moves.range(num_episodes):
     print("episode = {}. current epsilon = {}".format(episode, epsilon))
@@ -211,7 +211,7 @@ def run(level_script, config, num_episodes):
       # Take the action (a) and observe the outcome state(s') and reward (r)
       # new_state, reward, done, info = env.step(action)
       env_reward = env.step(action, num_steps=4)
-      
+      print('Reward: ', env_reward)
       #calculate penalties
       penalty = 5 #penalize for each step
       reward = env_reward - penalty
@@ -225,7 +225,7 @@ def run(level_script, config, num_episodes):
       new_coord_x_y = get_coord_x_y(coord_map, current_pos[0], current_pos[1], world_width, world_height)
       new_state = get_q_table_state(current_orientation, coord_x_y[0], coord_x_y[1], coord_map)
 
-      
+      # print(' :', new_coord_x_y[0], ' Y:', new_coord_x_y[1])
 
       #TODO nabeel: rewrite wall bumping logic
       # if coord_map[new_coord_x_y[0]][new_coord_x_y[1]] == "*":
@@ -251,14 +251,22 @@ def run(level_script, config, num_episodes):
       
       #check if reached goal
       if env_reward == 10:
-        done = True 
+        print('Goal reached')
+        done = True
         break
+
+    summary.append(step+1)
         
     # Reduce epsilon (because we need less and less exploration)
     epsilon = min_epsilon + (max_epsilon - min_epsilon)*np.exp(-decay_rate*episode) 
     rewards.append(total_rewards)
 
     env.reset()
+
+  print(' Steps:' , summary)
+  # once everything is finished save summary 
+  with open('python/logs/summary'+time.strftime("%H:%M")+'.txt', 'wb') as f:
+    pickle.dump(str(summary), f)
 
 
 if __name__ == '__main__':
@@ -279,7 +287,7 @@ if __name__ == '__main__':
                       'same content is generated on every run.')
   parser.add_argument('--runfiles_path', type=str, default=None,
                       help='Set the runfiles path to find DeepMind Lab data')
-  parser.add_argument('--num_episodes', type=int, default=1,
+  parser.add_argument('--num_episodes', type=int, default=120,
                       help='The number of episodes to play.')
   args = parser.parse_args()
 
